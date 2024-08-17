@@ -5,6 +5,7 @@
  * output.cpp - video stream output base class
  */
 
+#include <chrono>
 #include <cinttypes>
 #include <stdexcept>
 
@@ -89,7 +90,28 @@ void Output::OutputReady(void *mem, size_t size, int64_t timestamp_us, bool keyf
 
 void Output::timestampReady(int64_t timestamp)
 {
-	fprintf(fp_timestamps_, "%" PRId64 ".%03" PRId64 "\n", timestamp / 1000, timestamp % 1000);
+	//fprintf(fp_timestamps_, "%" PRId64 ".%03" PRId64 "\n", timestamp / 1000, timestamp % 1000);
+	// timestamp is in us. the original output string contains stamps in ms
+	// now we want output timestamp to be in us, integers, unix time
+
+	int64_t timestamp_modified = timestamp;
+	if (time_offset_skip_frames_beginning_counter_< time_offset_skip_frames_beginning_)
+	{
+		time_offset_skip_frames_beginning_counter_++;
+	}
+	else if (time_offset_running_average_num_frames_counter_ < time_offset_running_average_num_frames_)
+	{
+		auto now_us = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		auto added_offset = static_cast<double>(now_us - timestamp) / static_cast<double>(time_offset_running_average_num_frames_);
+		unix_to_camera_time_offset_ += static_cast<int64_t>(added_offset);
+		time_offset_running_average_num_frames_counter_++;
+	}
+	else
+	{
+		timestamp_modified = timestamp + unix_to_camera_time_offset_;
+	}
+	fprintf(fp_timestamps_, "%" PRId64 "\n", timestamp_modified);
+
 	if (options_->flush)
 		fflush(fp_timestamps_);
 }
