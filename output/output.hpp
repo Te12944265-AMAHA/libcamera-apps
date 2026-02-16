@@ -46,7 +46,17 @@ private:
 	State state_;
 	std::atomic<bool> enable_;
 	int64_t time_offset_;
-	int64_t last_timestamp_;
+	int64_t last_timestamp_; // in us
+
+	/* For aligning camera time with computer time */
+	int64_t unix_to_camera_time_offset_; // unix - camera, in us
+	// these frames won't be used for offset computation
+	size_t time_offset_skip_frames_beginning_ = 4;
+	size_t time_offset_skip_frames_beginning_counter_ = 0;
+	// after frame skipping, these frames will be used for offset computation
+	size_t time_offset_running_average_num_frames_ = 5;
+	size_t time_offset_running_average_num_frames_counter_ = 0;
+
 	std::streambuf *buf_metadata_;
 	std::ofstream of_metadata_;
 	bool metadata_started_ = false;
